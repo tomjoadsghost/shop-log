@@ -382,7 +382,7 @@ if (!SpeechRecognitionCtor) {
     recognition.onerror = (e) => {
       stopRecordingUI(
         e.error === "not-allowed" || e.error === "service-not-allowed"
-          ? "Microphone access denied"
+          ? "Mic blocked — check this app's permission in your phone's Settings"
           : "Didn't catch that — tap to try again"
       );
     };
