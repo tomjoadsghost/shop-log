@@ -73,6 +73,7 @@
         <dt>Address</dt><dd id="contact-address"></dd>
         <dt>Found via</dt><dd id="contact-source"></dd>
       </dl>
+      <button class="btn btn-secondary contact-edit-btn" id="contact-edit-btn">Edit info</button>
     </div>
 
     <div class="stage-tracker">
@@ -127,7 +128,7 @@
 <!-- ===================== NEW PROJECT MODAL ===================== -->
 <div class="modal-overlay" id="new-project-modal" hidden>
   <div class="modal">
-    <h2>New Project</h2>
+    <h2 id="project-modal-title">New Project</h2>
     <form id="new-project-form">
       <label>First name<input type="text" name="firstName" required></label>
       <label>Last name<input type="text" name="lastName" required></label>
@@ -138,7 +139,7 @@
       <label>How they found Dan<input type="text" name="source"></label>
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="new-project-cancel">Cancel</button>
-        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="submit" class="btn btn-primary" id="project-modal-submit">Create</button>
       </div>
     </form>
   </div>

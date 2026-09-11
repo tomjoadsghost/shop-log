@@ -275,6 +275,7 @@ html, body {
 .contact-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
 .contact-card dt { font-size: 12px; color: var(--text-dim); }
 .contact-card dd { margin: 0; font-size: 14px; }
+.contact-edit-btn { width: 100%; margin-top: 12px; padding: 8px; }
 
 /* ---------- Entry list (notes/todo/calendar) ---------- */
 .entry-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -285,8 +286,17 @@ html, body {
   padding: 10px 12px;
   font-size: 14px;
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   align-items: flex-start;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+.entry-item.is-dragging {
+  position: relative;
+  z-index: 5;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  opacity: 0.95;
 }
 .entry-item .entry-checkbox {
   width: 18px;
@@ -301,6 +311,27 @@ html, body {
 .entry-item.is-checked .entry-text { text-decoration: line-through; color: var(--text-dim); }
 .entry-text { flex: 1; }
 .entry-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+.drag-handle {
+  color: var(--text-dim);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+}
+.entry-delete-btn {
+  width: 100%;
+  margin-top: 2px;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* ---------- Misc ---------- */
 .misc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }

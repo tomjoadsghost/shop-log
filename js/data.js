@@ -68,10 +68,10 @@ async function seedIfEmpty() {
 
   const entries = [
     { id: "e1", projectId: "p1", category: "notes", text: "Client wants a slight overhang on the north side for stools.", createdAt: "2026-09-02T14:00:00" },
-    { id: "e2", projectId: "p1", category: "todo", text: "Order 3/4 inch full overlay hinges", done: false, createdAt: "2026-09-03T09:15:00" },
-    { id: "e3", projectId: "p1", category: "todo", text: "Confirm walnut slab delivery window", done: true, createdAt: "2026-08-28T11:00:00" },
+    { id: "e2", projectId: "p1", category: "todo", text: "Order 3/4 inch full overlay hinges", done: false, order: 1, createdAt: "2026-09-03T09:15:00" },
+    { id: "e3", projectId: "p1", category: "todo", text: "Confirm walnut slab delivery window", done: true, order: 0, createdAt: "2026-08-28T11:00:00" },
     { id: "e4", projectId: "p1", category: "calendar", text: "Site measure follow-up", date: "2026-09-15T10:00:00", reminderOffsetDays: 1, createdAt: "2026-09-01T08:00:00" },
-    { id: "e5", projectId: "p2", category: "todo", text: "Run radius mold template", done: false, createdAt: "2026-09-05T16:40:00" },
+    { id: "e5", projectId: "p2", category: "todo", text: "Run radius mold template", done: false, order: 0, createdAt: "2026-09-05T16:40:00" },
     { id: "e6", projectId: "p2", category: "notes", text: "Shelves should stop 4 inches short of ceiling for crown molding.", createdAt: "2026-08-20T10:00:00" },
     { id: "e7", projectId: "p3", category: "notes", text: "Delivered and installed without issue.", createdAt: "2026-08-02T13:00:00" },
   ];
@@ -122,6 +122,22 @@ async function createProject({ firstName, lastName, description, phone, email, a
   return dbPut("projects", project);
 }
 
+async function updateProject(id, { firstName, lastName, description, phone, email, address, source }) {
+  await dataReady;
+  const project = await dbGet("projects", id);
+  if (!project) return null;
+  Object.assign(project, {
+    firstName,
+    lastName,
+    description,
+    phone: phone || "",
+    email: email || "",
+    address: address || "",
+    source: source || "",
+  });
+  return dbPut("projects", project);
+}
+
 async function setProjectStage(id, stage) {
   await dataReady;
   const project = await dbGet("projects", id);
@@ -143,14 +159,21 @@ async function completeProject(id) {
 async function getEntries(projectId, category) {
   await dataReady;
   const all = await dbGetAll("entries");
-  return all
-    .filter((e) => e.projectId === projectId && e.category === category)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const filtered = all.filter((e) => e.projectId === projectId && e.category === category);
+  if (category === "todo") {
+    filtered.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  } else {
+    filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  }
+  return filtered;
 }
 
 async function createEntry(entry) {
   await dataReady;
   const full = { id: makeId(), createdAt: new Date().toISOString(), ...entry };
+  if (full.category === "todo" && full.order === undefined) {
+    full.order = Date.now();
+  }
   return dbPut("entries", full);
 }
 
@@ -165,6 +188,20 @@ async function toggleTodo(id) {
   if (!entry) return null;
   entry.done = !entry.done;
   return dbPut("entries", entry);
+}
+
+/** Persists a new manual order for a project's to-do list after a drag-reorder. */
+async function reorderTodoEntries(orderedIds) {
+  await dataReady;
+  await Promise.all(
+    orderedIds.map(async (id, index) => {
+      const entry = await dbGet("entries", id);
+      if (entry) {
+        entry.order = index;
+        await dbPut("entries", entry);
+      }
+    })
+  );
 }
 
 async function getMisc() {

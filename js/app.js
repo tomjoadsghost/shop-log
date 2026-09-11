@@ -75,6 +75,7 @@ async function openProjectDetail(id) {
   state.detailTab = "notes";
   state.checklistOpen = false;
   state.pendingComplete = false;
+  entryDeleteRevealId = null;
   document.querySelectorAll("#detail-tab-toggle .segmented-btn").forEach((b) =>
     b.classList.toggle("is-active", b.dataset.tab === "notes")
   );
@@ -185,11 +186,18 @@ document.getElementById("detail-tab-toggle").addEventListener("click", async (e)
   const btn = e.target.closest(".segmented-btn");
   if (!btn) return;
   state.detailTab = btn.dataset.tab;
+  entryDeleteRevealId = null;
   document.querySelectorAll("#detail-tab-toggle .segmented-btn").forEach((b) =>
     b.classList.toggle("is-active", b === btn)
   );
   await renderDetailEntries();
 });
+
+let entryDeleteRevealId = null;
+
+function entryDeleteBtnHTML(id) {
+  return id === entryDeleteRevealId ? `<button class="entry-delete-btn" data-id="${id}">Delete</button>` : "";
+}
 
 async function renderDetailEntries() {
   const list = document.getElementById("detail-entry-list");
@@ -207,6 +215,8 @@ async function renderDetailEntries() {
         <li class="entry-item ${e.done ? "is-checked" : ""}" data-id="${e.id}">
           <span class="entry-checkbox"></span>
           <span class="entry-text">${e.text}</span>
+          <span class="drag-handle" aria-label="Drag to reorder">&#8942;&#8942;</span>
+          ${entryDeleteBtnHTML(e.id)}
         </li>
       `
       )
@@ -215,11 +225,12 @@ async function renderDetailEntries() {
     list.innerHTML = entries
       .map(
         (e) => `
-        <li class="entry-item">
+        <li class="entry-item" data-id="${e.id}">
           <span class="entry-text">
             ${e.text}
             <div class="entry-meta">${formatDate(e.date)}${e.reminderOffsetDays ? ` &middot; reminder ${e.reminderOffsetDays}d before` : ""}</div>
           </span>
+          ${entryDeleteBtnHTML(e.id)}
         </li>
       `
       )
@@ -228,11 +239,12 @@ async function renderDetailEntries() {
     list.innerHTML = entries
       .map(
         (e) => `
-        <li class="entry-item">
+        <li class="entry-item" data-id="${e.id}">
           <span class="entry-text">
             ${e.text}
             <div class="entry-meta">${formatDate(e.createdAt)}</div>
           </span>
+          ${entryDeleteBtnHTML(e.id)}
         </li>
       `
       )
@@ -240,7 +252,112 @@ async function renderDetailEntries() {
   }
 }
 
-document.getElementById("detail-entry-list").addEventListener("click", async (e) => {
+const detailEntryList = document.getElementById("detail-entry-list");
+let entryPressTimer = null;
+let drag = null;
+
+function clearEntryPressTimer() {
+  if (entryPressTimer) {
+    clearTimeout(entryPressTimer);
+    entryPressTimer = null;
+  }
+}
+
+function getEntryListItems() {
+  return Array.from(detailEntryList.querySelectorAll(".entry-item"));
+}
+
+function startDrag(handle, e) {
+  const li = handle.closest(".entry-item");
+  if (!li) return;
+  e.preventDefault();
+  const rect = li.getBoundingClientRect();
+  drag = {
+    li,
+    pointerId: e.pointerId,
+    startClientY: e.clientY,
+    baseTop: rect.top,
+    height: rect.height,
+    translate: 0,
+  };
+  li.classList.add("is-dragging");
+  li.setPointerCapture(e.pointerId);
+}
+
+async function finishDrag(e) {
+  if (!drag || e.pointerId !== drag.pointerId) return;
+  drag.li.style.transform = "";
+  drag.li.classList.remove("is-dragging");
+  const orderedIds = getEntryListItems().map((li) => li.dataset.id);
+  drag = null;
+  await reorderTodoEntries(orderedIds);
+}
+
+detailEntryList.addEventListener("pointerdown", (e) => {
+  const handle = e.target.closest(".drag-handle");
+  if (handle && state.detailTab === "todo") {
+    startDrag(handle, e);
+    return;
+  }
+
+  const item = e.target.closest(".entry-item");
+  if (!item) return;
+  clearEntryPressTimer();
+  entryPressTimer = setTimeout(async () => {
+    entryDeleteRevealId = item.dataset.id;
+    await renderDetailEntries();
+  }, 500);
+});
+
+detailEntryList.addEventListener("pointermove", (e) => {
+  if (!drag || e.pointerId !== drag.pointerId) return;
+  e.preventDefault();
+
+  drag.translate = e.clientY - drag.startClientY;
+  drag.li.style.transform = `translateY(${drag.translate}px)`;
+
+  const draggedCenter = drag.baseTop + drag.translate + drag.height / 2;
+  const items = getEntryListItems();
+  const index = items.indexOf(drag.li);
+
+  const prev = items[index - 1];
+  if (prev) {
+    const prevRect = prev.getBoundingClientRect();
+    if (draggedCenter < prevRect.top + prevRect.height / 2) {
+      detailEntryList.insertBefore(drag.li, prev);
+      drag.baseTop -= prevRect.height;
+      return;
+    }
+  }
+
+  const next = items[index + 1];
+  if (next) {
+    const nextRect = next.getBoundingClientRect();
+    if (draggedCenter > nextRect.top + nextRect.height / 2) {
+      detailEntryList.insertBefore(drag.li, next.nextSibling);
+      drag.baseTop += nextRect.height;
+    }
+  }
+});
+
+["pointerup", "pointerleave", "pointercancel"].forEach((evt) =>
+  detailEntryList.addEventListener(evt, (e) => {
+    clearEntryPressTimer();
+    finishDrag(e);
+  })
+);
+
+detailEntryList.addEventListener("click", async (e) => {
+  const deleteBtn = e.target.closest(".entry-delete-btn");
+  if (deleteBtn) {
+    await deleteEntry(deleteBtn.dataset.id);
+    entryDeleteRevealId = null;
+    await renderDetailEntries();
+    return;
+  }
+
+  if (e.target.closest(".drag-handle")) return;
+
   const item = e.target.closest(".entry-item");
   if (!item || state.detailTab !== "todo") return;
   await toggleTodo(item.dataset.id);
@@ -253,21 +370,57 @@ function formatDate(iso) {
     " " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
-/* ---------------- New project modal ---------------- */
+/* ---------------- New project / edit project modal (shared) ---------------- */
 
 const newProjectModal = document.getElementById("new-project-modal");
+const projectForm = document.getElementById("new-project-form");
+const projectModalTitle = document.getElementById("project-modal-title");
+const projectModalSubmit = document.getElementById("project-modal-submit");
+
+let editingProjectId = null;
 
 document.getElementById("new-project-btn").addEventListener("click", () => {
+  editingProjectId = null;
+  projectForm.reset();
+  projectModalTitle.textContent = "New Project";
+  projectModalSubmit.textContent = "Create";
   newProjectModal.hidden = false;
 });
+
+document.getElementById("contact-edit-btn").addEventListener("click", async () => {
+  const project = await getProject(state.detailProjectId);
+  if (!project) return;
+  editingProjectId = project.id;
+  projectForm.firstName.value = project.firstName;
+  projectForm.lastName.value = project.lastName;
+  projectForm.description.value = project.description;
+  projectForm.phone.value = project.phone || "";
+  projectForm.email.value = project.email || "";
+  projectForm.address.value = project.address || "";
+  projectForm.source.value = project.source || "";
+  projectModalTitle.textContent = "Edit Project";
+  projectModalSubmit.textContent = "Save";
+  newProjectModal.hidden = false;
+});
+
 document.getElementById("new-project-cancel").addEventListener("click", () => {
+  editingProjectId = null;
   newProjectModal.hidden = true;
 });
-document.getElementById("new-project-form").addEventListener("submit", async (e) => {
+
+projectForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = e.target;
   const data = Object.fromEntries(new FormData(form).entries());
-  await createProject(data);
+
+  if (editingProjectId) {
+    await updateProject(editingProjectId, data);
+    await renderProjectDetail();
+  } else {
+    await createProject(data);
+  }
+
+  editingProjectId = null;
   form.reset();
   newProjectModal.hidden = true;
   await renderProjectList();
