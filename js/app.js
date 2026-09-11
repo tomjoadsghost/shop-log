@@ -317,6 +317,8 @@ const transcriptDoneBtn = document.getElementById("transcript-file");
 
 let recognition = null;
 let isRecording = false;
+let manualStop = false;
+let finalTranscript = "";
 let lastFiled = null; // { kind: "entry" | "misc", id }
 
 const CATEGORY_LABELS = { notes: "Notes", todo: "To-do", calendar: "Calendar" };
@@ -358,49 +360,71 @@ function stopRecordingUI(hintText) {
   recordHint.textContent = hintText;
 }
 
+/** Starts (or transparently restarts) a recognition session. Android/Chrome sometimes ends
+ *  a session on its own after a pause even with continuous=true; we restart it under the
+ *  hood so recording only really stops when the user taps the button. */
+function startRecognitionSession() {
+  recognition = new SpeechRecognitionCtor();
+  recognition.lang = navigator.language || "en-US";
+  recognition.continuous = true;
+  recognition.interimResults = false;
+
+  recognition.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + " ";
+    }
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === "no-speech" || e.error === "aborted") return; // onend decides what happens next
+    manualStop = true;
+    stopRecordingUI(
+      e.error === "not-allowed" || e.error === "service-not-allowed"
+        ? "Mic blocked — check this app's permission in your phone's Settings"
+        : "Didn't catch that — tap to try again"
+    );
+  };
+
+  recognition.onend = () => {
+    if (manualStop) {
+      stopRecordingUI("Tap to start recording");
+      const text = finalTranscript.trim();
+      finalTranscript = "";
+      if (text) handleTranscript(text);
+      return;
+    }
+    try {
+      recognition.start();
+    } catch {
+      stopRecordingUI("Tap to start recording");
+    }
+  };
+
+  try {
+    recognition.start();
+    isRecording = true;
+    recordBtn.classList.add("is-recording");
+    recordHint.textContent = "Recording… tap to stop";
+    transcriptBox.hidden = true;
+  } catch {
+    stopRecordingUI("Tap to start recording");
+  }
+}
+
 if (!SpeechRecognitionCtor) {
   recordBtn.disabled = true;
   recordHint.textContent = "Voice capture isn't supported in this browser";
 } else {
   recordBtn.addEventListener("click", () => {
     if (isRecording) {
+      manualStop = true;
       recognition.stop();
       return;
     }
 
-    recognition = new SpeechRecognitionCtor();
-    recognition.lang = navigator.language || "en-US";
-    recognition.continuous = true;
-    recognition.interimResults = false;
-
-    let finalTranscript = "";
-    recognition.onresult = (e) => {
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalTranscript += e.results[i][0].transcript + " ";
-      }
-    };
-    recognition.onerror = (e) => {
-      stopRecordingUI(
-        e.error === "not-allowed" || e.error === "service-not-allowed"
-          ? "Mic blocked — check this app's permission in your phone's Settings"
-          : "Didn't catch that — tap to try again"
-      );
-    };
-    recognition.onend = () => {
-      stopRecordingUI("Tap to start recording");
-      const text = finalTranscript.trim();
-      if (text) handleTranscript(text);
-    };
-
-    try {
-      recognition.start();
-      isRecording = true;
-      recordBtn.classList.add("is-recording");
-      recordHint.textContent = "Recording… tap to stop";
-      transcriptBox.hidden = true;
-    } catch {
-      stopRecordingUI("Tap to start recording");
-    }
+    manualStop = false;
+    finalTranscript = "";
+    startRecognitionSession();
   });
 }
 
