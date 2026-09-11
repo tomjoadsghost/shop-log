@@ -110,7 +110,9 @@ async function renderProjectDetail() {
 
 function renderChecklist(project) {
   const checklist = document.getElementById("stage-checklist");
+  const saveBtn = document.getElementById("stage-save-btn");
   checklist.hidden = !state.checklistOpen;
+  saveBtn.hidden = !state.checklistOpen;
   if (!state.checklistOpen) return;
 
   checklist.innerHTML = STAGES.map((name, i) => {
@@ -145,6 +147,12 @@ document.getElementById("stage-checklist").addEventListener("click", async (e) =
   await setProjectStage(state.detailProjectId, Number(li.dataset.stage));
   await renderProjectDetail();
   await renderProjectList();
+});
+
+document.getElementById("stage-save-btn").addEventListener("click", () => {
+  state.checklistOpen = false;
+  document.getElementById("stage-checklist").hidden = true;
+  document.getElementById("stage-save-btn").hidden = true;
 });
 
 document.getElementById("mark-complete-btn").addEventListener("click", async () => {
@@ -267,6 +275,8 @@ document.getElementById("new-project-form").addEventListener("submit", async (e)
 
 /* ---------------- Misc ---------------- */
 
+let miscDeleteRevealId = null;
+
 async function renderMisc() {
   const list = document.getElementById("misc-list");
   const items = await getMisc();
@@ -279,14 +289,48 @@ async function renderMisc() {
   list.innerHTML = items
     .map(
       (m) => `
-      <li class="misc-item">
+      <li class="misc-item" data-id="${m.id}">
         <p>${m.text}</p>
         <div class="misc-meta">${formatDate(m.createdAt)}</div>
+        ${m.id === miscDeleteRevealId ? `<button class="misc-delete-btn" data-id="${m.id}">Delete</button>` : ""}
       </li>
     `
     )
     .join("");
 }
+
+/* Long-press (or click-and-hold) a Misc item to reveal a Delete button for it. */
+const miscList = document.getElementById("misc-list");
+let miscPressTimer = null;
+
+function clearMiscPressTimer() {
+  if (miscPressTimer) {
+    clearTimeout(miscPressTimer);
+    miscPressTimer = null;
+  }
+}
+
+miscList.addEventListener("pointerdown", (e) => {
+  const item = e.target.closest(".misc-item");
+  if (!item) return;
+  clearMiscPressTimer();
+  miscPressTimer = setTimeout(async () => {
+    miscDeleteRevealId = item.dataset.id;
+    await renderMisc();
+  }, 500);
+});
+
+["pointerup", "pointerleave", "pointercancel"].forEach((evt) =>
+  miscList.addEventListener(evt, clearMiscPressTimer)
+);
+
+miscList.addEventListener("click", async (e) => {
+  const deleteBtn = e.target.closest(".misc-delete-btn");
+  if (!deleteBtn) return;
+  await removeMisc(deleteBtn.dataset.id);
+  miscDeleteRevealId = null;
+  await renderMisc();
+});
 
 document.getElementById("export-btn").addEventListener("click", async () => {
   const data = await exportAllData();

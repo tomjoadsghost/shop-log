@@ -53,6 +53,12 @@ html, body {
 .view { display: none; padding: 20px 20px 8px; }
 .view.is-active { display: block; }
 
+#view-capture.is-active {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - var(--nav-h) - env(safe-area-inset-bottom));
+}
+
 .view-header {
   display: flex;
   align-items: baseline;
@@ -88,14 +94,15 @@ html, body {
 
 /* ---------- Capture ---------- */
 .capture-body {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 24px;
+  justify-content: center;
 }
 .record-btn {
-  width: 120px;
-  height: 120px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   border: none;
   background: var(--accent);
@@ -106,15 +113,15 @@ html, body {
   box-shadow: 0 6px 20px rgba(0,0,0,0.15);
 }
 .record-btn-icon {
-  width: 36px;
-  height: 36px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background: var(--accent-text);
 }
 .record-btn.is-recording .record-btn-icon {
-  border-radius: 6px;
-  width: 30px;
-  height: 30px;
+  border-radius: 10px;
+  width: 50px;
+  height: 50px;
   background: #ffffff;
 }
 .record-btn.is-recording {
@@ -232,6 +239,7 @@ html, body {
 .stage-name { font-size: 14px; font-weight: 600; }
 
 .stage-checklist { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.stage-checklist[hidden] { display: none; }
 .stage-checklist li {
   display: flex;
   align-items: center;
@@ -253,6 +261,8 @@ html, body {
 .stage-checklist li.is-done { color: var(--text-dim); }
 .stage-checklist li.is-done .stage-dot { background: var(--stage-fill); border-color: var(--stage-fill); }
 .stage-checklist li.is-current { border-color: var(--accent); }
+
+.stage-save-btn { width: 100%; margin-top: 10px; padding: 10px; }
 
 /* ---------- Contact card ---------- */
 .contact-card {
@@ -299,9 +309,23 @@ html, body {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 .misc-item p { margin: 0 0 8px; font-size: 14px; }
 .misc-item .misc-meta { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+.misc-delete-btn {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: var(--danger);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* ---------- Bottom nav ---------- */
 .bottom-nav {
