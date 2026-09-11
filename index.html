@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shop Log</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#b5622a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Shop Log">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ===================== CAPTURE ===================== -->
+  <section class="view" id="view-capture">
+    <header class="view-header">
+      <h1>Capture</h1>
+    </header>
+    <div class="capture-body">
+      <button class="record-btn" id="record-btn" aria-label="Start recording">
+        <span class="record-btn-icon"></span>
+      </button>
+      <p class="record-hint" id="record-hint">Tap to start recording</p>
+
+      <div class="transcript-box" id="transcript-box" hidden>
+        <h2 class="transcript-label">Transcript</h2>
+        <p class="transcript-text" id="transcript-text"></p>
+        <div class="transcript-result" id="transcript-result"></div>
+        <div class="transcript-actions">
+          <button class="btn btn-secondary" id="transcript-discard">Undo</button>
+          <button class="btn btn-primary" id="transcript-file">Done</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PROJECTS ===================== -->
+  <section class="view" id="view-projects">
+    <header class="view-header">
+      <h1>Projects</h1>
+      <button class="icon-btn" id="new-project-btn" aria-label="New project">+</button>
+    </header>
+
+    <div class="segmented" id="projects-folder-toggle">
+      <button class="segmented-btn is-active" data-folder="active">Active</button>
+      <button class="segmented-btn" data-folder="complete">Complete</button>
+    </div>
+
+    <ul class="project-list" id="project-list"></ul>
+  </section>
+
+  <!-- ===================== PROJECT DETAIL ===================== -->
+  <section class="view" id="view-project-detail">
+    <header class="view-header view-header-detail">
+      <button class="icon-btn back-btn" id="detail-back-btn" aria-label="Back">&larr;</button>
+      <div class="detail-title">
+        <h1 id="detail-client-name">Client Name</h1>
+        <p id="detail-description">Project description</p>
+      </div>
+      <button class="icon-btn" id="detail-contact-toggle" aria-label="Toggle contact card">i</button>
+    </header>
+
+    <div class="contact-card" id="contact-card" hidden>
+      <dl>
+        <dt>Phone</dt><dd id="contact-phone"></dd>
+        <dt>Email</dt><dd id="contact-email"></dd>
+        <dt>Address</dt><dd id="contact-address"></dd>
+        <dt>Found via</dt><dd id="contact-source"></dd>
+      </dl>
+    </div>
+
+    <div class="stage-tracker">
+      <div class="stage-bar" id="detail-stage-bar"></div>
+      <div class="stage-tracker-row">
+        <span class="stage-name" id="detail-stage-name">Stage name</span>
+        <button class="btn btn-small" id="stage-update-btn">Update</button>
+      </div>
+
+      <ol class="stage-checklist" id="stage-checklist" hidden></ol>
+
+      <button class="btn btn-complete" id="mark-complete-btn">Mark project complete</button>
+    </div>
+
+    <div class="segmented" id="detail-tab-toggle">
+      <button class="segmented-btn is-active" data-tab="notes">Notes</button>
+      <button class="segmented-btn" data-tab="todo">To-do</button>
+      <button class="segmented-btn" data-tab="calendar">Calendar</button>
+    </div>
+
+    <ul class="entry-list" id="detail-entry-list"></ul>
+  </section>
+
+  <!-- ===================== MISC ===================== -->
+  <section class="view" id="view-misc">
+    <header class="view-header">
+      <h1>Misc</h1>
+      <button class="icon-btn" id="export-btn" aria-label="Export backup">&#8681;</button>
+    </header>
+    <ul class="misc-list" id="misc-list"></ul>
+  </section>
+
+  <!-- ===================== BOTTOM NAV ===================== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn is-active" data-view="capture">
+      <span class="nav-icon">&#9679;</span>
+      <span>Capture</span>
+    </button>
+    <button class="nav-btn" data-view="projects">
+      <span class="nav-icon">&#9635;</span>
+      <span>Projects</span>
+    </button>
+    <button class="nav-btn" data-view="misc">
+      <span class="nav-icon">&#9776;</span>
+      <span>Misc</span>
+    </button>
+  </nav>
+
+</div>
+
+<!-- ===================== NEW PROJECT MODAL ===================== -->
+<div class="modal-overlay" id="new-project-modal" hidden>
+  <div class="modal">
+    <h2>New Project</h2>
+    <form id="new-project-form">
+      <label>First name<input type="text" name="firstName" required></label>
+      <label>Last name<input type="text" name="lastName" required></label>
+      <label>Project description<input type="text" name="description" required></label>
+      <label>Phone<input type="tel" name="phone"></label>
+      <label>Email<input type="email" name="email"></label>
+      <label>Address<input type="text" name="address"></label>
+      <label>How they found Dan<input type="text" name="source"></label>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="new-project-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="js/db.js"></script>
+<script src="js/data.js"></script>
+<script src="js/parse.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
