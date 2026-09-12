@@ -216,6 +216,58 @@ document.getElementById("detail-tab-toggle").addEventListener("click", async (e)
   await renderDetailEntries();
 });
 
+/* ---------------- Manually add a Note / To-do / Calendar entry ---------------- */
+
+const addEntryModal = document.getElementById("add-entry-modal");
+const addEntryForm = document.getElementById("add-entry-form");
+const ADD_ENTRY_TITLES = { notes: "Add Note", todo: "Add To-do", calendar: "Add Appointment" };
+const ADD_ENTRY_LABELS = { notes: "Note", todo: "Task", calendar: "What's it for?" };
+
+document.getElementById("add-entry-btn").addEventListener("click", () => {
+  addEntryForm.reset();
+  document.getElementById("add-entry-title").textContent = ADD_ENTRY_TITLES[state.detailTab] || "Add";
+  document.getElementById("add-entry-text-label").textContent = ADD_ENTRY_LABELS[state.detailTab] || "Text";
+
+  const isCalendar = state.detailTab === "calendar";
+  document.getElementById("add-entry-calendar-fields").hidden = !isCalendar;
+  if (isCalendar) {
+    const now = new Date();
+    addEntryForm.date.value = dateKey(now);
+  }
+
+  addEntryModal.hidden = false;
+});
+
+document.getElementById("add-entry-cancel").addEventListener("click", () => {
+  addEntryModal.hidden = true;
+});
+
+addEntryForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = addEntryForm.text.value.trim();
+  if (!text) return;
+
+  const entry = { projectId: state.detailProjectId, category: state.detailTab, text };
+
+  if (state.detailTab === "todo") {
+    entry.done = false;
+  } else if (state.detailTab === "calendar") {
+    const dateVal = addEntryForm.date.value;
+    if (dateVal) {
+      const timeVal = addEntryForm.time.value || "09:00";
+      entry.date = new Date(`${dateVal}T${timeVal}`).toISOString();
+    } else {
+      entry.date = null;
+    }
+    const reminder = addEntryForm.reminderOffsetDays.value;
+    entry.reminderOffsetDays = reminder ? Number(reminder) : null;
+  }
+
+  await createEntry(entry);
+  addEntryModal.hidden = true;
+  await renderDetailEntries();
+});
+
 let entryEditingId = null;
 let entryConfirmId = null;
 

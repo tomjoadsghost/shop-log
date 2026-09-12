@@ -89,10 +89,13 @@
       <button class="btn btn-complete" id="mark-complete-btn">Mark project complete</button>
     </div>
 
-    <div class="segmented" id="detail-tab-toggle">
-      <button class="segmented-btn is-active" data-tab="notes">Notes</button>
-      <button class="segmented-btn" data-tab="todo">To-do</button>
-      <button class="segmented-btn" data-tab="calendar">Calendar</button>
+    <div class="detail-tab-row">
+      <div class="segmented" id="detail-tab-toggle">
+        <button class="segmented-btn is-active" data-tab="notes">Notes</button>
+        <button class="segmented-btn" data-tab="todo">To-do</button>
+        <button class="segmented-btn" data-tab="calendar">Calendar</button>
+      </div>
+      <button class="icon-btn" id="add-entry-btn" aria-label="Add">+</button>
     </div>
 
     <ul class="entry-list" id="detail-entry-list"></ul>
@@ -160,6 +163,33 @@
       <div class="modal-actions">
         <button type="button" class="btn btn-secondary" id="new-project-cancel">Cancel</button>
         <button type="submit" class="btn btn-primary" id="project-modal-submit">Create</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== ADD ENTRY MODAL ===================== -->
+<div class="modal-overlay" id="add-entry-modal" hidden>
+  <div class="modal">
+    <h2 id="add-entry-title">Add Note</h2>
+    <form id="add-entry-form">
+      <label id="add-entry-text-field"><span id="add-entry-text-label">Note</span><textarea name="text" required></textarea></label>
+      <div id="add-entry-calendar-fields" hidden>
+        <label>Date<input type="date" name="date"></label>
+        <label>Time<input type="time" name="time"></label>
+        <label>Remind me
+          <select name="reminderOffsetDays">
+            <option value="">No reminder</option>
+            <option value="1">1 day before</option>
+            <option value="2">2 days before</option>
+            <option value="3">3 days before</option>
+            <option value="7">1 week before</option>
+          </select>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="add-entry-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add</button>
       </div>
     </form>
   </div>

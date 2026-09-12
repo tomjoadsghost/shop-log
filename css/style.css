@@ -501,7 +501,8 @@ html, body {
 .modal h2 { margin: 0 0 16px; font-size: 18px; }
 .modal form { display: flex; flex-direction: column; gap: 12px; }
 .modal label { font-size: 13px; color: var(--text-dim); display: flex; flex-direction: column; gap: 4px; }
-.modal input {
+.modal input, .modal textarea, .modal select {
+  font: inherit;
   font-size: 15px;
   padding: 9px 10px;
   border-radius: 8px;
@@ -509,5 +510,11 @@ html, body {
   background: var(--bg);
   color: var(--text);
 }
+.modal textarea { resize: vertical; min-height: 70px; }
 .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
 .modal-actions .btn { flex: 1; }
+
+/* ---------- Project detail: tab row + add button ---------- */
+.detail-tab-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.detail-tab-row .segmented { flex: 1; margin-bottom: 0; }
+#add-entry-btn { font-size: 20px; }
