@@ -15,6 +15,7 @@ let state = {
   detailTab: "notes",
   checklistOpen: false,
   pendingComplete: false,
+  calendarMonth: new Date(),
 };
 
 function showView(name) {
@@ -708,61 +709,120 @@ document.getElementById("export-btn").addEventListener("click", async () => {
   URL.revokeObjectURL(url);
 });
 
-/* ---------------- Calendar (aggregate agenda across all projects) ---------------- */
+/* ---------------- Calendar (month grid, aggregated across all projects) ---------------- */
 
-function dayLabel(date) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const target = new Date(date);
-  target.setHours(0, 0, 0, 0);
-
-  if (target.getTime() === today.getTime()) return "Today";
-  if (target.getTime() === tomorrow.getTime()) return "Tomorrow";
-  return target.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+function dateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-async function renderCalendarView() {
-  const list = document.getElementById("calendar-agenda");
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+function calendarEntryHTML(e) {
+  const time = new Date(e.date).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `
+    <li class="calendar-entry" data-project-id="${e.project.id}">
+      <div class="calendar-entry-time">${time}</div>
+      <div class="calendar-entry-body">
+        <div class="calendar-entry-client">${escapeHtml(e.project.firstName)} ${escapeHtml(e.project.lastName)}</div>
+        <div class="calendar-entry-text">${escapeHtml(e.text)}</div>
+        ${e.reminderOffsetDays ? `<div class="calendar-entry-reminder">Reminder ${e.reminderOffsetDays}d before</div>` : ""}
+      </div>
+    </li>
+  `;
+}
+
+/** Builds 42 grid cells (6 full weeks) for the given month, including the leading/trailing days of adjacent months. */
+function buildMonthGrid(monthDate) {
+  const year = monthDate.getFullYear();
+  const month = monthDate.getMonth();
+  const startOffset = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const cells = [];
+  for (let i = startOffset - 1; i >= 0; i--) {
+    cells.push({ day: daysInPrevMonth - i, otherMonth: true, date: null });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, otherMonth: false, date: new Date(year, month, d) });
+  }
+  let nextDay = 1;
+  while (cells.length < 42) {
+    cells.push({ day: nextDay++, otherMonth: true, date: null });
+  }
+  return cells;
+}
+
+async function renderCalendarMonth() {
+  document.getElementById("calendar-month-label").textContent = state.calendarMonth.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
 
   const all = await getAllCalendarEntries();
-  const upcoming = all.filter((e) => new Date(e.date) >= startOfToday);
-
-  if (upcoming.length === 0) {
-    list.innerHTML = `<li class="empty-state">No upcoming appointments.</li>`;
-    return;
+  const entriesByDay = new Map();
+  for (const e of all) {
+    const key = dateKey(new Date(e.date));
+    if (!entriesByDay.has(key)) entriesByDay.set(key, []);
+    entriesByDay.get(key).push(e);
   }
 
-  let html = "";
-  let lastDayKey = null;
-  for (const e of upcoming) {
-    const d = new Date(e.date);
-    const dayKey = d.toDateString();
-    if (dayKey !== lastDayKey) {
-      html += `<li class="calendar-day-header">${dayLabel(d)}</li>`;
-      lastDayKey = dayKey;
-    }
-    const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-    html += `
-      <li class="calendar-entry" data-project-id="${e.project.id}">
-        <div class="calendar-entry-time">${time}</div>
-        <div class="calendar-entry-body">
-          <div class="calendar-entry-client">${escapeHtml(e.project.firstName)} ${escapeHtml(e.project.lastName)}</div>
-          <div class="calendar-entry-text">${escapeHtml(e.text)}</div>
-          ${e.reminderOffsetDays ? `<div class="calendar-entry-reminder">Reminder ${e.reminderOffsetDays}d before</div>` : ""}
+  const today = new Date();
+  const todayKey = dateKey(today);
+  const cells = buildMonthGrid(state.calendarMonth);
+
+  document.getElementById("calendar-grid").innerHTML = cells
+    .map((cell) => {
+      if (cell.otherMonth) {
+        return `<div class="calendar-cell is-other-month"><span class="calendar-cell-day">${cell.day}</span></div>`;
+      }
+      const key = dateKey(cell.date);
+      const hasEvents = entriesByDay.has(key);
+      return `
+        <div class="calendar-cell${key === todayKey ? " is-today" : ""}${hasEvents ? " has-events" : ""}" data-date="${key}">
+          <span class="calendar-cell-day">${cell.day}</span>
+          ${hasEvents ? '<span class="calendar-cell-dot"></span>' : ""}
         </div>
-      </li>
-    `;
-  }
-  list.innerHTML = html;
+      `;
+    })
+    .join("");
 }
 
-document.getElementById("calendar-agenda").addEventListener("click", async (e) => {
+document.getElementById("calendar-prev-month").addEventListener("click", async () => {
+  state.calendarMonth.setMonth(state.calendarMonth.getMonth() - 1);
+  await renderCalendarMonth();
+});
+
+document.getElementById("calendar-next-month").addEventListener("click", async () => {
+  state.calendarMonth.setMonth(state.calendarMonth.getMonth() + 1);
+  await renderCalendarMonth();
+});
+
+const dayDetailModal = document.getElementById("day-detail-modal");
+
+document.getElementById("calendar-grid").addEventListener("click", async (e) => {
+  const cell = e.target.closest(".calendar-cell.has-events");
+  if (!cell) return;
+
+  const all = await getAllCalendarEntries();
+  const dayEntries = all.filter((entry) => dateKey(new Date(entry.date)) === cell.dataset.date);
+  const [y, m, d] = cell.dataset.date.split("-").map(Number);
+
+  document.getElementById("day-detail-title").textContent = new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  document.getElementById("day-detail-list").innerHTML = dayEntries.map(calendarEntryHTML).join("");
+  dayDetailModal.hidden = false;
+});
+
+document.getElementById("day-detail-close").addEventListener("click", () => {
+  dayDetailModal.hidden = true;
+});
+
+document.getElementById("day-detail-list").addEventListener("click", async (e) => {
   const item = e.target.closest(".calendar-entry");
   if (!item) return;
+  dayDetailModal.hidden = true;
   await openProjectDetail(item.dataset.projectId, "calendar");
 });
 
@@ -914,7 +974,7 @@ navButtons.forEach((btn) => {
     showView(view);
     if (view === "projects") await renderProjectList();
     if (view === "misc") await renderMisc();
-    if (view === "calendar") await renderCalendarView();
+    if (view === "calendar") await renderCalendarMonth();
   });
 });
 

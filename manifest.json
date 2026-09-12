@@ -1,6 +1,6 @@
 {
   "name": "Cretcher Woodshop",
-  "short_name": "Cretcher",
+  "short_name": "Cretcher Woodshop",
   "description": "Voice-filed to-dos, notes, and stage tracking for woodworking projects.",
   "start_url": "./index.html",
   "scope": "./",
