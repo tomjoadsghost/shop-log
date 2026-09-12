@@ -13,6 +13,7 @@
   --danger: #a13d2c;
   --radius: 14px;
   --nav-h: 64px;
+  --header-h: 48px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -46,8 +47,31 @@ html, body {
   margin: 0 auto;
   min-height: 100vh;
   position: relative;
+  padding-top: calc(var(--header-h) + env(safe-area-inset-top));
   padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
   background: var(--bg);
+}
+
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  height: var(--header-h);
+  padding-top: env(safe-area-inset-top);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  font-family: "Cinzel", Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  z-index: 20;
 }
 
 .view { display: none; padding: 20px 20px 8px; }
@@ -56,7 +80,7 @@ html, body {
 #view-capture.is-active {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - var(--nav-h) - env(safe-area-inset-bottom));
+  min-height: calc(100vh - var(--nav-h) - var(--header-h) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
 }
 
 .view-header {
