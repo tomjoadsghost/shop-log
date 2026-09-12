@@ -22,12 +22,12 @@ function showView(name) {
   navButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.view === name));
 }
 
-/** Yellow-green (just started) fading to a vibrant "finished" green, one shade per stage. */
+/** Vivid yellow (just started) ripening into a vibrant "finished" green, one shade per stage. */
 function stageSegmentColor(index, total) {
   const t = total > 1 ? index / (total - 1) : 1;
-  const hue = 74 + (140 - 74) * t;
-  const sat = 60 + (65 - 60) * t;
-  const light = 46 + (40 - 46) * t;
+  const hue = 52 + (140 - 52) * t;
+  const sat = 80 + (65 - 80) * t;
+  const light = 52 + (38 - 52) * t;
   return `hsl(${hue.toFixed(0)}, ${sat.toFixed(0)}%, ${light.toFixed(0)}%)`;
 }
 
@@ -418,10 +418,13 @@ detailEntryList.addEventListener("pointermove", (e) => {
     const items = getEntryListItems();
     const index = items.indexOf(drag.li);
 
+    // Swapping requires crossing well past a neighbor (not just its midpoint), so
+    // there's a comfortable dead zone around each slot instead of a hair-trigger
+    // swap the moment you nudge past the halfway point.
     const prev = items[index - 1];
     if (prev) {
       const prevRect = prev.getBoundingClientRect();
-      if (draggedCenter < prevRect.top + prevRect.height / 2) {
+      if (draggedCenter < prevRect.top + prevRect.height * 0.25) {
         detailEntryList.insertBefore(drag.li, prev);
         drag.baseTop -= prevRect.height;
         return;
@@ -431,7 +434,7 @@ detailEntryList.addEventListener("pointermove", (e) => {
     const next = items[index + 1];
     if (next) {
       const nextRect = next.getBoundingClientRect();
-      if (draggedCenter > nextRect.top + nextRect.height / 2) {
+      if (draggedCenter > nextRect.top + nextRect.height * 0.75) {
         detailEntryList.insertBefore(drag.li, next.nextSibling);
         drag.baseTop += nextRect.height;
       }
