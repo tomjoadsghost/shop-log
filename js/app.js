@@ -21,10 +21,23 @@ function showView(name) {
   navButtons.forEach((btn) => btn.classList.toggle("is-active", btn.dataset.view === name));
 }
 
+/** Yellow-green (just started) fading to a vibrant "finished" green, one shade per stage. */
+function stageSegmentColor(index, total) {
+  const t = total > 1 ? index / (total - 1) : 1;
+  const hue = 74 + (140 - 74) * t;
+  const sat = 60 + (65 - 60) * t;
+  const light = 46 + (40 - 46) * t;
+  return `hsl(${hue.toFixed(0)}, ${sat.toFixed(0)}%, ${light.toFixed(0)}%)`;
+}
+
 function stageBarHTML(stage) {
   let html = "";
   for (let i = 1; i <= STAGES.length; i++) {
-    html += `<span class="seg${i <= stage ? " is-filled" : ""}"></span>`;
+    if (i <= stage) {
+      html += `<span class="seg is-filled" style="background:${stageSegmentColor(i - 1, STAGES.length)}"></span>`;
+    } else {
+      html += `<span class="seg"></span>`;
+    }
   }
   return html;
 }
@@ -676,7 +689,7 @@ document.getElementById("export-btn").addEventListener("click", async () => {
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = `shop-log-backup-${dateStamp}.json`;
+  a.download = `cretcher-woodshop-backup-${dateStamp}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
