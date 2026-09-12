@@ -404,15 +404,26 @@ function getEntryListItems() {
   return Array.from(detailEntryList.querySelectorAll(".entry-item"));
 }
 
+const ENTRY_LIST_GAP = 8; // matches .entry-list { gap: 8px } in style.css
+
+/** Sets up a "ghost slot" drag: the dragged row tracks the finger 1:1, and every other
+ *  row visually shifts by exactly one slot to open a gap at the would-be drop position.
+ *  Nothing is reordered in the DOM/data until the finger lifts, so there's no cascading
+ *  re-swap mid-drag and no directional bias between dragging up vs. down. */
 function beginDrag(li, e) {
+  const allItems = getEntryListItems();
+  const oldIndex = allItems.indexOf(li);
+  const otherItems = allItems.filter((item) => item !== li);
   const rect = li.getBoundingClientRect();
+
   drag = {
     li,
     pointerId: e.pointerId,
     startClientY: e.clientY,
-    baseTop: rect.top,
-    height: rect.height,
-    translate: 0,
+    oldIndex,
+    otherItems,
+    rowHeight: rect.height + ENTRY_LIST_GAP,
+    targetIndex: oldIndex,
   };
   li.classList.add("is-dragging");
   try {
@@ -424,10 +435,18 @@ function beginDrag(li, e) {
 
 async function finishDrag(e) {
   if (!drag || e.pointerId !== drag.pointerId) return;
-  drag.li.style.transform = "";
-  drag.li.classList.remove("is-dragging");
-  const orderedIds = getEntryListItems().map((li) => li.dataset.id);
+  const { li, otherItems, targetIndex } = drag;
+
+  otherItems.forEach((item) => {
+    item.style.transform = "";
+  });
+  li.style.transform = "";
+  li.classList.remove("is-dragging");
+
+  detailEntryList.insertBefore(li, otherItems[targetIndex] || null);
+
   drag = null;
+  const orderedIds = getEntryListItems().map((item) => item.dataset.id);
   await reorderTodoEntries(orderedIds);
 }
 
@@ -464,34 +483,23 @@ detailEntryList.addEventListener("pointermove", (e) => {
     if (e.pointerId !== drag.pointerId) return;
     e.preventDefault();
 
-    drag.translate = e.clientY - drag.startClientY;
-    drag.li.style.transform = `translateY(${drag.translate}px)`;
+    const deltaY = e.clientY - drag.startClientY;
+    drag.li.style.transform = `translateY(${deltaY}px)`;
 
-    const draggedCenter = drag.baseTop + drag.translate + drag.height / 2;
-    const items = getEntryListItems();
-    const index = items.indexOf(drag.li);
+    const n = drag.otherItems.length;
+    const slotsMoved = Math.round(deltaY / drag.rowHeight);
+    const targetIndex = Math.max(0, Math.min(n, drag.oldIndex + slotsMoved));
+    drag.targetIndex = targetIndex;
 
-    // Swapping requires crossing well past a neighbor (not just its midpoint), so
-    // there's a comfortable dead zone around each slot instead of a hair-trigger
-    // swap the moment you nudge past the halfway point.
-    const prev = items[index - 1];
-    if (prev) {
-      const prevRect = prev.getBoundingClientRect();
-      if (draggedCenter < prevRect.top + prevRect.height * 0.25) {
-        detailEntryList.insertBefore(drag.li, prev);
-        drag.baseTop -= prevRect.height;
-        return;
-      }
-    }
-
-    const next = items[index + 1];
-    if (next) {
-      const nextRect = next.getBoundingClientRect();
-      if (draggedCenter > nextRect.top + nextRect.height * 0.75) {
-        detailEntryList.insertBefore(drag.li, next.nextSibling);
-        drag.baseTop += nextRect.height;
-      }
-    }
+    // Every other row's slot shifts by at most one position: down if the dragged
+    // item moved up past it, up if the dragged item moved down past it, otherwise
+    // it stays put. That's what opens a visual gap right where it would land.
+    drag.otherItems.forEach((item, i) => {
+      const originalSlot = i < drag.oldIndex ? i : i + 1;
+      const currentSlot = i < targetIndex ? i : i + 1;
+      const shift = (currentSlot - originalSlot) * drag.rowHeight;
+      item.style.transform = shift ? `translateY(${shift}px)` : "";
+    });
     return;
   }
 
@@ -827,11 +835,15 @@ async function renderCalendarMonth() {
         return `<div class="calendar-cell is-other-month"><span class="calendar-cell-day">${cell.day}</span></div>`;
       }
       const key = dateKey(cell.date);
-      const hasEvents = entriesByDay.has(key);
+      const dayEntries = entriesByDay.get(key) || [];
+      const dotCount = Math.min(dayEntries.length, 4);
+      const dots = dotCount > 0
+        ? `<span class="calendar-cell-dots">${'<span class="calendar-cell-dot"></span>'.repeat(dotCount)}</span>`
+        : "";
       return `
-        <div class="calendar-cell${key === todayKey ? " is-today" : ""}${hasEvents ? " has-events" : ""}" data-date="${key}">
+        <div class="calendar-cell${key === todayKey ? " is-today" : ""}${dayEntries.length ? " has-events" : ""}" data-date="${key}">
           <span class="calendar-cell-day">${cell.day}</span>
-          ${hasEvents ? '<span class="calendar-cell-dot"></span>' : ""}
+          ${dots}
         </div>
       `;
     })

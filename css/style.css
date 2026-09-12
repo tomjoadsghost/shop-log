@@ -294,6 +294,10 @@ html, body {
 }
 #detail-entry-list.is-todo-tab .entry-item {
   touch-action: none;
+  transition: transform 120ms ease;
+}
+#detail-entry-list.is-todo-tab .entry-item.is-dragging {
+  transition: none;
 }
 .entry-item.is-dragging {
   position: relative;
@@ -420,7 +424,8 @@ html, body {
 }
 .calendar-cell.is-today { border-color: var(--accent); font-weight: 700; }
 .calendar-cell.has-events { cursor: pointer; }
-.calendar-cell-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+.calendar-cell-dots { display: flex; gap: 3px; }
+.calendar-cell-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
 
 /* ---------- Calendar agenda (reused inside the day-detail modal) ---------- */
 .calendar-agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 55vh; overflow-y: auto; }
