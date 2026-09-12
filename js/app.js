@@ -5,6 +5,7 @@ const views = {
   projects: document.getElementById("view-projects"),
   "project-detail": document.getElementById("view-project-detail"),
   misc: document.getElementById("view-misc"),
+  calendar: document.getElementById("view-calendar"),
 };
 const navButtons = document.querySelectorAll(".nav-btn");
 
@@ -89,15 +90,15 @@ function escapeHtml(str) {
   }[c]));
 }
 
-async function openProjectDetail(id) {
+async function openProjectDetail(id, tab = "notes") {
   state.detailProjectId = id;
-  state.detailTab = "notes";
+  state.detailTab = tab;
   state.checklistOpen = false;
   state.pendingComplete = false;
   entryEditingId = null;
   entryConfirmId = null;
   document.querySelectorAll("#detail-tab-toggle .segmented-btn").forEach((b) =>
-    b.classList.toggle("is-active", b.dataset.tab === "notes")
+    b.classList.toggle("is-active", b.dataset.tab === tab)
   );
   document.getElementById("contact-card").hidden = true;
   await renderProjectDetail();
@@ -232,6 +233,7 @@ function confirmMenuHTML(isConfirming) {
 
 async function renderDetailEntries() {
   const list = document.getElementById("detail-entry-list");
+  list.classList.toggle("is-todo-tab", state.detailTab === "todo");
   const entries = await getEntries(state.detailProjectId, state.detailTab);
 
   if (entries.length === 0) {
@@ -385,6 +387,10 @@ detailEntryList.addEventListener("pointerdown", (e) => {
   entryPressStart = { x: e.clientX, y: e.clientY };
 
   if (state.detailTab === "todo") {
+    // Claim this touch immediately so the browser doesn't start its own long-press
+    // context menu / selection gesture, which otherwise races our timer below and
+    // wins (visible as the row "jiggling" without ever actually starting to drag).
+    e.preventDefault();
     entryPressTimer = setTimeout(() => {
       entryPressTimer = null;
       beginDrag(item, e);
@@ -397,6 +403,8 @@ detailEntryList.addEventListener("pointerdown", (e) => {
     }, 450);
   }
 });
+
+detailEntryList.addEventListener("contextmenu", (e) => e.preventDefault());
 
 detailEntryList.addEventListener("pointermove", (e) => {
   if (drag) {
@@ -621,6 +629,7 @@ async function renderMisc() {
 
 /* Long-press a Misc item to edit it. A trash icon reveals a Cancel/Delete confirm row. */
 const miscList = document.getElementById("misc-list");
+miscList.addEventListener("contextmenu", (e) => e.preventDefault());
 let miscPressTimer = null;
 
 function clearMiscPressTimer() {
@@ -694,6 +703,64 @@ document.getElementById("export-btn").addEventListener("click", async () => {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+});
+
+/* ---------------- Calendar (aggregate agenda across all projects) ---------------- */
+
+function dayLabel(date) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+
+  if (target.getTime() === today.getTime()) return "Today";
+  if (target.getTime() === tomorrow.getTime()) return "Tomorrow";
+  return target.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+async function renderCalendarView() {
+  const list = document.getElementById("calendar-agenda");
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const all = await getAllCalendarEntries();
+  const upcoming = all.filter((e) => new Date(e.date) >= startOfToday);
+
+  if (upcoming.length === 0) {
+    list.innerHTML = `<li class="empty-state">No upcoming appointments.</li>`;
+    return;
+  }
+
+  let html = "";
+  let lastDayKey = null;
+  for (const e of upcoming) {
+    const d = new Date(e.date);
+    const dayKey = d.toDateString();
+    if (dayKey !== lastDayKey) {
+      html += `<li class="calendar-day-header">${dayLabel(d)}</li>`;
+      lastDayKey = dayKey;
+    }
+    const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    html += `
+      <li class="calendar-entry" data-project-id="${e.project.id}">
+        <div class="calendar-entry-time">${time}</div>
+        <div class="calendar-entry-body">
+          <div class="calendar-entry-client">${escapeHtml(e.project.firstName)} ${escapeHtml(e.project.lastName)}</div>
+          <div class="calendar-entry-text">${escapeHtml(e.text)}</div>
+          ${e.reminderOffsetDays ? `<div class="calendar-entry-reminder">Reminder ${e.reminderOffsetDays}d before</div>` : ""}
+        </div>
+      </li>
+    `;
+  }
+  list.innerHTML = html;
+}
+
+document.getElementById("calendar-agenda").addEventListener("click", async (e) => {
+  const item = e.target.closest(".calendar-entry");
+  if (!item) return;
+  await openProjectDetail(item.dataset.projectId, "calendar");
 });
 
 /* ---------------- Capture: Web Speech API + Project -> Category -> Content parsing ---------------- */
@@ -844,6 +911,7 @@ navButtons.forEach((btn) => {
     showView(view);
     if (view === "projects") await renderProjectList();
     if (view === "misc") await renderMisc();
+    if (view === "calendar") await renderCalendarView();
   });
 });
 

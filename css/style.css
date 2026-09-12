@@ -292,6 +292,9 @@ html, body {
   -webkit-touch-callout: none;
   user-select: none;
 }
+#detail-entry-list.is-todo-tab .entry-item {
+  touch-action: none;
+}
 .entry-item.is-dragging {
   position: relative;
   z-index: 5;
@@ -378,6 +381,40 @@ html, body {
 .misc-text { flex: 1; }
 .misc-item p { margin: 0; font-size: 14px; }
 .misc-item .misc-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+
+/* ---------- Calendar agenda ---------- */
+.calendar-agenda { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.calendar-day-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin: 14px 2px 2px;
+}
+.calendar-day-header:first-child { margin-top: 2px; }
+.calendar-entry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.calendar-entry-time {
+  flex-shrink: 0;
+  width: 64px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  padding-top: 1px;
+}
+.calendar-entry-body { flex: 1; min-width: 0; }
+.calendar-entry-client { font-size: 14px; font-weight: 600; }
+.calendar-entry-text { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+.calendar-entry-reminder { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
 
 /* ---------- Bottom nav ---------- */
 .bottom-nav {

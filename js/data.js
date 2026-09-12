@@ -99,6 +99,18 @@ async function getProjects(status) {
   return filtered;
 }
 
+/** Every calendar entry across all projects (that has a resolved date), joined with its project. */
+async function getAllCalendarEntries() {
+  await dataReady;
+  const [entries, projects] = await Promise.all([dbGetAll("entries"), dbGetAll("projects")]);
+  const projectById = new Map(projects.map((p) => [p.id, p]));
+  return entries
+    .filter((e) => e.category === "calendar" && e.date)
+    .map((e) => ({ ...e, project: projectById.get(e.projectId) }))
+    .filter((e) => e.project)
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
 async function getProject(id) {
   await dataReady;
   return dbGet("projects", id);
