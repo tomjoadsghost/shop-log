@@ -70,12 +70,19 @@ document.getElementById("project-list").addEventListener("click", async (e) => {
 
 /* ---------------- Project detail ---------------- */
 
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
 async function openProjectDetail(id) {
   state.detailProjectId = id;
   state.detailTab = "notes";
   state.checklistOpen = false;
   state.pendingComplete = false;
-  entryDeleteRevealId = null;
+  entryEditingId = null;
+  entryConfirmId = null;
   document.querySelectorAll("#detail-tab-toggle .segmented-btn").forEach((b) =>
     b.classList.toggle("is-active", b.dataset.tab === "notes")
   );
@@ -186,17 +193,28 @@ document.getElementById("detail-tab-toggle").addEventListener("click", async (e)
   const btn = e.target.closest(".segmented-btn");
   if (!btn) return;
   state.detailTab = btn.dataset.tab;
-  entryDeleteRevealId = null;
+  entryEditingId = null;
+  entryConfirmId = null;
   document.querySelectorAll("#detail-tab-toggle .segmented-btn").forEach((b) =>
     b.classList.toggle("is-active", b === btn)
   );
   await renderDetailEntries();
 });
 
-let entryDeleteRevealId = null;
+let entryEditingId = null;
+let entryConfirmId = null;
 
-function entryDeleteBtnHTML(id) {
-  return id === entryDeleteRevealId ? `<button class="entry-delete-btn" data-id="${id}">Delete</button>` : "";
+/** The trash icon (default) or a Cancel/Delete confirm row, shown after tapping the icon. */
+function confirmMenuHTML(isConfirming) {
+  if (isConfirming) {
+    return `
+      <span class="entry-confirm-row">
+        <button class="entry-cancel-delete" type="button">Cancel</button>
+        <button class="entry-confirm-delete" type="button">Delete</button>
+      </span>
+    `;
+  }
+  return `<button class="entry-menu-btn" type="button" aria-label="Delete">&#128465;</button>`;
 }
 
 async function renderDetailEntries() {
@@ -210,67 +228,115 @@ async function renderDetailEntries() {
 
   if (state.detailTab === "todo") {
     list.innerHTML = entries
-      .map(
-        (e) => `
-        <li class="entry-item ${e.done ? "is-checked" : ""}" data-id="${e.id}">
-          <span class="entry-checkbox"></span>
-          <span class="entry-text">${e.text}</span>
-          <span class="drag-handle" aria-label="Drag to reorder">&#8942;&#8942;</span>
-          ${entryDeleteBtnHTML(e.id)}
-        </li>
-      `
-      )
+      .map((e) => {
+        if (e.id === entryEditingId) {
+          return `
+            <li class="entry-item is-editing" data-id="${e.id}">
+              <span class="entry-checkbox"></span>
+              <span class="entry-edit-wrap">
+                <input type="text" class="entry-edit-input" value="${escapeHtml(e.text)}">
+              </span>
+              <span class="entry-edit-actions">
+                <button class="entry-edit-cancel" type="button">Cancel</button>
+                <button class="entry-edit-save" type="button">Save</button>
+              </span>
+            </li>
+          `;
+        }
+        return `
+          <li class="entry-item ${e.done ? "is-checked" : ""}" data-id="${e.id}">
+            <span class="entry-checkbox"></span>
+            <span class="entry-text">${escapeHtml(e.text)}</span>
+            ${confirmMenuHTML(e.id === entryConfirmId)}
+          </li>
+        `;
+      })
       .join("");
   } else if (state.detailTab === "calendar") {
     list.innerHTML = entries
-      .map(
-        (e) => `
-        <li class="entry-item" data-id="${e.id}">
-          <span class="entry-text">
-            ${e.text}
-            <div class="entry-meta">${formatDate(e.date)}${e.reminderOffsetDays ? ` &middot; reminder ${e.reminderOffsetDays}d before` : ""}</div>
-          </span>
-          ${entryDeleteBtnHTML(e.id)}
-        </li>
-      `
-      )
+      .map((e) => {
+        if (e.id === entryEditingId) {
+          return `
+            <li class="entry-item is-editing" data-id="${e.id}">
+              <span class="entry-edit-wrap">
+                <textarea class="entry-edit-input">${escapeHtml(e.text)}</textarea>
+              </span>
+              <span class="entry-edit-actions">
+                <button class="entry-edit-cancel" type="button">Cancel</button>
+                <button class="entry-edit-save" type="button">Save</button>
+              </span>
+            </li>
+          `;
+        }
+        return `
+          <li class="entry-item" data-id="${e.id}">
+            <span class="entry-text">
+              ${escapeHtml(e.text)}
+              <div class="entry-meta">${formatDate(e.date)}${e.reminderOffsetDays ? ` &middot; reminder ${e.reminderOffsetDays}d before` : ""}</div>
+            </span>
+            ${confirmMenuHTML(e.id === entryConfirmId)}
+          </li>
+        `;
+      })
       .join("");
   } else {
     list.innerHTML = entries
-      .map(
-        (e) => `
-        <li class="entry-item" data-id="${e.id}">
-          <span class="entry-text">
-            ${e.text}
-            <div class="entry-meta">${formatDate(e.createdAt)}</div>
-          </span>
-          ${entryDeleteBtnHTML(e.id)}
-        </li>
-      `
-      )
+      .map((e) => {
+        if (e.id === entryEditingId) {
+          return `
+            <li class="entry-item is-editing" data-id="${e.id}">
+              <span class="entry-edit-wrap">
+                <textarea class="entry-edit-input">${escapeHtml(e.text)}</textarea>
+              </span>
+              <span class="entry-edit-actions">
+                <button class="entry-edit-cancel" type="button">Cancel</button>
+                <button class="entry-edit-save" type="button">Save</button>
+              </span>
+            </li>
+          `;
+        }
+        return `
+          <li class="entry-item" data-id="${e.id}">
+            <span class="entry-text">
+              ${escapeHtml(e.text)}
+              <div class="entry-meta">${formatDate(e.createdAt)}</div>
+            </span>
+            ${confirmMenuHTML(e.id === entryConfirmId)}
+          </li>
+        `;
+      })
       .join("");
+  }
+
+  const editInput = list.querySelector(".entry-edit-input");
+  if (editInput) {
+    editInput.focus();
+    editInput.select();
   }
 }
 
 const detailEntryList = document.getElementById("detail-entry-list");
 let entryPressTimer = null;
+let entryPressStart = null;
 let drag = null;
+
+const NON_PRESS_TARGETS =
+  ".entry-checkbox, .entry-menu-btn, .entry-cancel-delete, .entry-confirm-delete, " +
+  ".entry-edit-input, .entry-edit-save, .entry-edit-cancel";
 
 function clearEntryPressTimer() {
   if (entryPressTimer) {
     clearTimeout(entryPressTimer);
     entryPressTimer = null;
   }
+  entryPressStart = null;
 }
 
 function getEntryListItems() {
   return Array.from(detailEntryList.querySelectorAll(".entry-item"));
 }
 
-function startDrag(handle, e) {
-  const li = handle.closest(".entry-item");
-  if (!li) return;
-  e.preventDefault();
+function beginDrag(li, e) {
   const rect = li.getBoundingClientRect();
   drag = {
     li,
@@ -281,7 +347,11 @@ function startDrag(handle, e) {
     translate: 0,
   };
   li.classList.add("is-dragging");
-  li.setPointerCapture(e.pointerId);
+  try {
+    li.setPointerCapture(e.pointerId);
+  } catch {
+    /* pointer may no longer be active; drag will just no-op on move */
+  }
 }
 
 async function finishDrag(e) {
@@ -294,49 +364,64 @@ async function finishDrag(e) {
 }
 
 detailEntryList.addEventListener("pointerdown", (e) => {
-  const handle = e.target.closest(".drag-handle");
-  if (handle && state.detailTab === "todo") {
-    startDrag(handle, e);
-    return;
-  }
-
+  if (e.target.closest(NON_PRESS_TARGETS)) return;
   const item = e.target.closest(".entry-item");
-  if (!item) return;
+  if (!item || item.classList.contains("is-editing")) return;
+
   clearEntryPressTimer();
-  entryPressTimer = setTimeout(async () => {
-    entryDeleteRevealId = item.dataset.id;
-    await renderDetailEntries();
-  }, 500);
+  entryPressStart = { x: e.clientX, y: e.clientY };
+
+  if (state.detailTab === "todo") {
+    entryPressTimer = setTimeout(() => {
+      entryPressTimer = null;
+      beginDrag(item, e);
+    }, 450);
+  } else {
+    entryPressTimer = setTimeout(async () => {
+      entryPressTimer = null;
+      entryEditingId = item.dataset.id;
+      await renderDetailEntries();
+    }, 450);
+  }
 });
 
 detailEntryList.addEventListener("pointermove", (e) => {
-  if (!drag || e.pointerId !== drag.pointerId) return;
-  e.preventDefault();
+  if (drag) {
+    if (e.pointerId !== drag.pointerId) return;
+    e.preventDefault();
 
-  drag.translate = e.clientY - drag.startClientY;
-  drag.li.style.transform = `translateY(${drag.translate}px)`;
+    drag.translate = e.clientY - drag.startClientY;
+    drag.li.style.transform = `translateY(${drag.translate}px)`;
 
-  const draggedCenter = drag.baseTop + drag.translate + drag.height / 2;
-  const items = getEntryListItems();
-  const index = items.indexOf(drag.li);
+    const draggedCenter = drag.baseTop + drag.translate + drag.height / 2;
+    const items = getEntryListItems();
+    const index = items.indexOf(drag.li);
 
-  const prev = items[index - 1];
-  if (prev) {
-    const prevRect = prev.getBoundingClientRect();
-    if (draggedCenter < prevRect.top + prevRect.height / 2) {
-      detailEntryList.insertBefore(drag.li, prev);
-      drag.baseTop -= prevRect.height;
-      return;
+    const prev = items[index - 1];
+    if (prev) {
+      const prevRect = prev.getBoundingClientRect();
+      if (draggedCenter < prevRect.top + prevRect.height / 2) {
+        detailEntryList.insertBefore(drag.li, prev);
+        drag.baseTop -= prevRect.height;
+        return;
+      }
     }
+
+    const next = items[index + 1];
+    if (next) {
+      const nextRect = next.getBoundingClientRect();
+      if (draggedCenter > nextRect.top + nextRect.height / 2) {
+        detailEntryList.insertBefore(drag.li, next.nextSibling);
+        drag.baseTop += nextRect.height;
+      }
+    }
+    return;
   }
 
-  const next = items[index + 1];
-  if (next) {
-    const nextRect = next.getBoundingClientRect();
-    if (draggedCenter > nextRect.top + nextRect.height / 2) {
-      detailEntryList.insertBefore(drag.li, next.nextSibling);
-      drag.baseTop += nextRect.height;
-    }
+  if (entryPressTimer && entryPressStart) {
+    const dx = Math.abs(e.clientX - entryPressStart.x);
+    const dy = Math.abs(e.clientY - entryPressStart.y);
+    if (dx > 10 || dy > 10) clearEntryPressTimer();
   }
 });
 
@@ -348,20 +433,67 @@ detailEntryList.addEventListener("pointermove", (e) => {
 );
 
 detailEntryList.addEventListener("click", async (e) => {
-  const deleteBtn = e.target.closest(".entry-delete-btn");
-  if (deleteBtn) {
-    await deleteEntry(deleteBtn.dataset.id);
-    entryDeleteRevealId = null;
+  const item = e.target.closest(".entry-item");
+  if (!item) return;
+  const id = item.dataset.id;
+
+  if (e.target.closest(".entry-menu-btn")) {
+    entryConfirmId = id;
     await renderDetailEntries();
     return;
   }
+  if (e.target.closest(".entry-cancel-delete")) {
+    entryConfirmId = null;
+    await renderDetailEntries();
+    return;
+  }
+  if (e.target.closest(".entry-confirm-delete")) {
+    await deleteEntry(id);
+    entryConfirmId = null;
+    await renderDetailEntries();
+    return;
+  }
+  if (e.target.closest(".entry-edit-save")) {
+    const input = item.querySelector(".entry-edit-input");
+    const newText = input.value.trim();
+    if (newText) await updateEntryText(id, newText);
+    entryEditingId = null;
+    await renderDetailEntries();
+    return;
+  }
+  if (e.target.closest(".entry-edit-cancel")) {
+    entryEditingId = null;
+    await renderDetailEntries();
+    return;
+  }
+  if (e.target.closest(".entry-checkbox")) {
+    if (state.detailTab === "todo") {
+      await toggleTodo(id);
+      await renderDetailEntries();
+    }
+    return;
+  }
+  if (state.detailTab === "todo" && e.target.closest(".entry-text")) {
+    entryEditingId = id;
+    await renderDetailEntries();
+  }
+});
 
-  if (e.target.closest(".drag-handle")) return;
-
+detailEntryList.addEventListener("keydown", async (e) => {
+  const input = e.target.closest(".entry-edit-input");
+  if (!input) return;
   const item = e.target.closest(".entry-item");
-  if (!item || state.detailTab !== "todo") return;
-  await toggleTodo(item.dataset.id);
-  await renderDetailEntries();
+
+  if (e.key === "Enter" && input.tagName === "INPUT") {
+    e.preventDefault();
+    const newText = input.value.trim();
+    if (newText) await updateEntryText(item.dataset.id, newText);
+    entryEditingId = null;
+    await renderDetailEntries();
+  } else if (e.key === "Escape") {
+    entryEditingId = null;
+    await renderDetailEntries();
+  }
 });
 
 function formatDate(iso) {
@@ -428,7 +560,8 @@ projectForm.addEventListener("submit", async (e) => {
 
 /* ---------------- Misc ---------------- */
 
-let miscDeleteRevealId = null;
+let miscEditingId = null;
+let miscConfirmId = null;
 
 async function renderMisc() {
   const list = document.getElementById("misc-list");
@@ -440,19 +573,40 @@ async function renderMisc() {
   }
 
   list.innerHTML = items
-    .map(
-      (m) => `
-      <li class="misc-item" data-id="${m.id}">
-        <p>${m.text}</p>
-        <div class="misc-meta">${formatDate(m.createdAt)}</div>
-        ${m.id === miscDeleteRevealId ? `<button class="misc-delete-btn" data-id="${m.id}">Delete</button>` : ""}
-      </li>
-    `
-    )
+    .map((m) => {
+      if (m.id === miscEditingId) {
+        return `
+          <li class="misc-item is-editing" data-id="${m.id}">
+            <span class="entry-edit-wrap">
+              <textarea class="entry-edit-input">${escapeHtml(m.text)}</textarea>
+            </span>
+            <span class="entry-edit-actions">
+              <button class="entry-edit-cancel" type="button">Cancel</button>
+              <button class="entry-edit-save" type="button">Save</button>
+            </span>
+          </li>
+        `;
+      }
+      return `
+        <li class="misc-item" data-id="${m.id}">
+          <span class="misc-text">
+            <p>${escapeHtml(m.text)}</p>
+            <div class="misc-meta">${formatDate(m.createdAt)}</div>
+          </span>
+          ${confirmMenuHTML(m.id === miscConfirmId)}
+        </li>
+      `;
+    })
     .join("");
+
+  const editInput = list.querySelector(".entry-edit-input");
+  if (editInput) {
+    editInput.focus();
+    editInput.select();
+  }
 }
 
-/* Long-press (or click-and-hold) a Misc item to reveal a Delete button for it. */
+/* Long-press a Misc item to edit it. A trash icon reveals a Cancel/Delete confirm row. */
 const miscList = document.getElementById("misc-list");
 let miscPressTimer = null;
 
@@ -464,11 +618,13 @@ function clearMiscPressTimer() {
 }
 
 miscList.addEventListener("pointerdown", (e) => {
+  if (e.target.closest(NON_PRESS_TARGETS)) return;
   const item = e.target.closest(".misc-item");
-  if (!item) return;
+  if (!item || item.classList.contains("is-editing")) return;
+
   clearMiscPressTimer();
   miscPressTimer = setTimeout(async () => {
-    miscDeleteRevealId = item.dataset.id;
+    miscEditingId = item.dataset.id;
     await renderMisc();
   }, 500);
 });
@@ -478,11 +634,38 @@ miscList.addEventListener("pointerdown", (e) => {
 );
 
 miscList.addEventListener("click", async (e) => {
-  const deleteBtn = e.target.closest(".misc-delete-btn");
-  if (!deleteBtn) return;
-  await removeMisc(deleteBtn.dataset.id);
-  miscDeleteRevealId = null;
-  await renderMisc();
+  const item = e.target.closest(".misc-item");
+  if (!item) return;
+  const id = item.dataset.id;
+
+  if (e.target.closest(".entry-menu-btn")) {
+    miscConfirmId = id;
+    await renderMisc();
+    return;
+  }
+  if (e.target.closest(".entry-cancel-delete")) {
+    miscConfirmId = null;
+    await renderMisc();
+    return;
+  }
+  if (e.target.closest(".entry-confirm-delete")) {
+    await removeMisc(id);
+    miscConfirmId = null;
+    await renderMisc();
+    return;
+  }
+  if (e.target.closest(".entry-edit-save")) {
+    const textarea = item.querySelector(".entry-edit-input");
+    const newText = textarea.value.trim();
+    if (newText) await updateMiscText(id, newText);
+    miscEditingId = null;
+    await renderMisc();
+    return;
+  }
+  if (e.target.closest(".entry-edit-cancel")) {
+    miscEditingId = null;
+    await renderMisc();
+  }
 });
 
 document.getElementById("export-btn").addEventListener("click", async () => {

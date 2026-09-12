@@ -309,29 +309,57 @@ html, body {
 }
 .entry-item.is-checked .entry-checkbox { background: var(--stage-fill); border-color: var(--stage-fill); }
 .entry-item.is-checked .entry-text { text-decoration: line-through; color: var(--text-dim); }
-.entry-text { flex: 1; }
+.entry-text { flex: 1; cursor: text; }
 .entry-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
-.drag-handle {
-  color: var(--text-dim);
-  font-size: 16px;
-  line-height: 1;
-  padding: 2px 4px;
-  cursor: grab;
-  touch-action: none;
+
+.entry-menu-btn {
   flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px 6px;
+  cursor: pointer;
+  border-radius: 6px;
 }
-.entry-delete-btn {
-  width: 100%;
-  margin-top: 2px;
-  padding: 8px;
+.entry-menu-btn:active { background: var(--surface-2); }
+
+.entry-confirm-row { display: flex; gap: 8px; width: 100%; flex-shrink: 0; }
+.entry-cancel-delete, .entry-confirm-delete {
+  flex: 1;
   border: none;
   border-radius: 8px;
-  background: var(--danger);
-  color: #ffffff;
+  padding: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
+.entry-cancel-delete { background: var(--surface-2); color: var(--text); }
+.entry-confirm-delete { background: var(--danger); color: #ffffff; }
+
+.entry-edit-wrap { flex: 1 1 100%; }
+.entry-edit-input {
+  width: 100%;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+.entry-edit-actions { display: flex; gap: 8px; width: 100%; justify-content: flex-end; flex-shrink: 0; }
+.entry-edit-save, .entry-edit-cancel {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.entry-edit-cancel { background: var(--surface-2); color: var(--text); }
+.entry-edit-save { background: var(--accent); color: var(--accent-text); }
 
 /* ---------- Misc ---------- */
 .misc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -340,23 +368,16 @@ html, body {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 12px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
   -webkit-touch-callout: none;
   user-select: none;
 }
-.misc-item p { margin: 0 0 8px; font-size: 14px; }
-.misc-item .misc-meta { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
-.misc-delete-btn {
-  width: 100%;
-  margin-top: 4px;
-  padding: 8px;
-  border: none;
-  border-radius: 8px;
-  background: var(--danger);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
+.misc-text { flex: 1; }
+.misc-item p { margin: 0; font-size: 14px; }
+.misc-item .misc-meta { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
 
 /* ---------- Bottom nav ---------- */
 .bottom-nav {

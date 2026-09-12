@@ -182,6 +182,14 @@ async function deleteEntry(id) {
   return dbDelete("entries", id);
 }
 
+async function updateEntryText(id, text) {
+  await dataReady;
+  const entry = await dbGet("entries", id);
+  if (!entry) return null;
+  entry.text = text;
+  return dbPut("entries", entry);
+}
+
 async function toggleTodo(id) {
   await dataReady;
   const entry = await dbGet("entries", id);
@@ -214,6 +222,14 @@ async function addMisc(text) {
   await dataReady;
   const entry = { id: makeId(), text, createdAt: new Date().toISOString() };
   return dbPut("misc", entry);
+}
+
+async function updateMiscText(id, text) {
+  await dataReady;
+  const item = await dbGet("misc", id);
+  if (!item) return null;
+  item.text = text;
+  return dbPut("misc", item);
 }
 
 async function removeMisc(id) {
